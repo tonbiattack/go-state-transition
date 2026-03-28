@@ -30,7 +30,7 @@ func NewManagementRepository(db *gorm.DB) *ManagementRepository {
 }
 
 // FindByID は ID に対応する Management を返す
-// DB から取得した bank_status は NewBankStatus で検証してからドメインオブジェクトに変換する
+// DBレコードは中間データへ詰め替えてからドメインオブジェクトへ変換する
 func (r *ManagementRepository) FindByID(id int) (*domain.Management, error) {
 	var record managementRecord
 	result := r.db.First(&record, id)
@@ -38,16 +38,13 @@ func (r *ManagementRepository) FindByID(id int) (*domain.Management, error) {
 		return nil, fmt.Errorf("ID %d の入金管理が見つかりません: %w", id, result.Error)
 	}
 
-	// DB の数値を BankStatus に変換する（不正値は error を返す）
-	status, err := domain.NewBankStatus(record.BankStatus)
+	data := newManagementDataFromRecord(record)
+	management, err := data.ToDomain()
 	if err != nil {
-		return nil, fmt.Errorf("ステータス変換エラー: %w", err)
+		return nil, err
 	}
 
-	return &domain.Management{
-		ID:         int(record.ID),
-		BankStatus: status,
-	}, nil
+	return management, nil
 }
 
 // Save は Management の状態を DB に保存する
